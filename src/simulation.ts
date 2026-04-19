@@ -30,7 +30,7 @@ const DEFAULT_PARAMETERS: AttractorParameters = {
   d: 0.5,
 }
 
-const SPEED_COLOR_MAX = 90
+const SPEED_COLOR_MAX = 175
 
 const lorenz: ODEFunction = (_t = 1, point, parameters) => ({
   x: parameters.a * (point.y - point.x),
@@ -108,9 +108,9 @@ export function createLorenzSimulation(
     positions[index * 3 + 2] = point.z
 
     const t = getNormalizedSpeed(speed)
-    colors[index * 3] = t
-    colors[index * 3 + 1] = 0.2
-    colors[index * 3 + 2] = 1 - t
+    colors[index * 3] = 0.0 + 0.6*t
+    colors[index * 3 + 1] = 0.5 - 0.5*t
+    colors[index * 3 + 2] = 1.0 - 0.5*t
   }
 
   for (let i = 0; i < count; i += 1) {

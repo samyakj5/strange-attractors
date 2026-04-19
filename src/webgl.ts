@@ -130,7 +130,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 
   let pointCount = 0
 
-  gl.clearColor(1, 1, 1, 1)
+  gl.clearColor(1, 1, 1, 0)
   gl.enable(gl.BLEND)
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
   gl.enable(gl.DEPTH_TEST)
@@ -174,7 +174,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0)
 
     gl.uniformMatrix4fv(uMatrix, false, matrix)
-    gl.uniform1f(uPointSize, 1.5)
+    gl.uniform1f(uPointSize, 3.5)
 
     gl.drawArrays(gl.POINTS, 0, pointCount)
   }

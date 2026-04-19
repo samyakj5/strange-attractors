@@ -21,7 +21,7 @@ if (!canvas) {
 
 const renderer = createRenderer(canvas)
 const camera = createCamera({x: 0, y: 0, z: 27})
-const simulation = createLorenzSimulation(50000, 0.01)
+const simulation = createLorenzSimulation(100000, 0.01)
 
 renderer.setPositions(simulation.getPositions())
 renderer.setColors(simulation.getColors())
