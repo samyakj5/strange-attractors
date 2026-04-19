@@ -6,6 +6,11 @@ export type Renderer = {
   setPositions: (data: Float32Array) => void
 }
 
+export type RendererOptions = {
+  clearColor?: [number, number, number, number]
+  pointSize?: number
+}
+
 const VERTEX_SHADER_SOURCE = `
 attribute vec3 a_position;
 attribute vec3 a_color;
@@ -89,7 +94,10 @@ function createProgram(
   return program
 }
 
-export function createRenderer(canvas: HTMLCanvasElement): Renderer {
+export function createRenderer(
+  canvas: HTMLCanvasElement,
+  options: RendererOptions = {},
+): Renderer {
   const gl = canvas.getContext('webgl')
 
   if (!gl) {
@@ -129,8 +137,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
   }
 
   let pointCount = 0
+  const clearColor = options.clearColor ?? [1, 1, 1, 0]
+  const pointSize = options.pointSize ?? 3.5
 
-  gl.clearColor(1, 1, 1, 0)
+  gl.clearColor(...clearColor)
   gl.enable(gl.BLEND)
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
   gl.enable(gl.DEPTH_TEST)
@@ -174,7 +184,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
     gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0)
 
     gl.uniformMatrix4fv(uMatrix, false, matrix)
-    gl.uniform1f(uPointSize, 3.5)
+    gl.uniform1f(uPointSize, pointSize)
 
     gl.drawArrays(gl.POINTS, 0, pointCount)
   }
