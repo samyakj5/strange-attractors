@@ -30,51 +30,24 @@ if (!app) {
 const appRoot: HTMLDivElement = app
 
 const attractorCards: AttractorCard[] = [
-  {
-    id: 'lorenz',
-    implemented: true,
-    name: 'Lorenz',
-  },
-  {
-    id: 'rossler',
-    implemented: false,
-    name: 'Rossler',
-  },
-  {
-    id: 'thomas',
-    implemented: false,
-    name: 'Thomas',
-  },
-  {
-    id: 'aizawa',
-    implemented: false,
-    name: 'Aizawa',
-  },
-  {
-    id: 'dadras',
-    implemented: false,
-    name: 'Dadras',
-  },
-  {
-    id: 'four-wing',
-    implemented: false,
-    name: 'Four-Wing',
-  },
+  { id: 'lorenz', implemented: true, name: 'Lorenz' },
+  { id: 'rossler', implemented: false, name: 'Rossler' },
+  { id: 'thomas', implemented: false, name: 'Thomas' },
+  { id: 'aizawa', implemented: false, name: 'Aizawa' },
+  { id: 'dadras', implemented: false, name: 'Dadras' },
+  { id: 'four-wing', implemented: false, name: 'Four-Wing' },
 ]
 
 const ATTRACTOR_ROUTE_PREFIX = '#/attractor/'
 
 function createNoopController(): ViewController {
-  return {
-    destroy: () => {},
-  }
+  return { destroy: () => {} }
 }
 
 function getAttractorRoute(): string | null {
   if (!window.location.hash.startsWith(ATTRACTOR_ROUTE_PREFIX)) {
     return null
   }
-
   const id = window.location.hash.slice(ATTRACTOR_ROUTE_PREFIX.length)
   return id || null
 }
@@ -113,10 +86,7 @@ function mountLorenzScene(
   resizeObserver.observe(canvas)
 
   const handlePointerDown = (event: PointerEvent) => {
-    if (!options.interactive) {
-      return
-    }
-
+    if (!options.interactive) return
     isDragging = true
     lastX = event.clientX
     lastY = event.clientY
@@ -124,44 +94,27 @@ function mountLorenzScene(
   }
 
   const handlePointerMove = (event: PointerEvent) => {
-    if (!options.interactive || !isDragging) {
-      return
-    }
-
+    if (!options.interactive || !isDragging) return
     const dx = event.clientX - lastX
     const dy = event.clientY - lastY
-
     camera.orbit(dx, dy)
-
     lastX = event.clientX
     lastY = event.clientY
   }
 
   const stopDragging = (pointerId?: number) => {
-    if (!options.interactive) {
-      return
-    }
-
+    if (!options.interactive) return
     isDragging = false
-
     if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) {
       canvas.releasePointerCapture(pointerId)
     }
   }
 
-  const handlePointerUp = (event: PointerEvent) => {
-    stopDragging(event.pointerId)
-  }
-
-  const handlePointerCancel = (event: PointerEvent) => {
-    stopDragging(event.pointerId)
-  }
+  const handlePointerUp = (event: PointerEvent) => stopDragging(event.pointerId)
+  const handlePointerCancel = (event: PointerEvent) => stopDragging(event.pointerId)
 
   const handleWheel = (event: WheelEvent) => {
-    if (!options.interactive) {
-      return
-    }
-
+    if (!options.interactive) return
     event.preventDefault()
     camera.zoom(event.deltaY)
   }
@@ -175,9 +128,7 @@ function mountLorenzScene(
   }
 
   const renderFrame = () => {
-    if (destroyed) {
-      return
-    }
+    if (destroyed) return
 
     simulation.step()
     renderer.setPositions(simulation.getPositions())
@@ -214,109 +165,64 @@ function mountLorenzScene(
   }
 }
 
-function renderGallery(): ViewController {
-  appRoot.innerHTML = `
-    <main class="page-shell">
-      <header class="page-header">
-        <h1>Strange Attractors</h1>
-      </header>
-      <section class="attractor-grid" aria-label="Attractor gallery">
-        ${attractorCards
-          .map((card, index) => {
-            const preview =
-              index === 0
-                ? `
-                  <div class="card-preview card-preview-live">
-                    <canvas
-                      id="lorenz-preview"
-                      class="preview-canvas"
-                      aria-label="Lorenz attractor thumbnail"
-                    ></canvas>
-                  </div>
-                `
-                : `
-                  <div class="card-preview">
-                    <div class="card-placeholder" aria-hidden="true"></div>
-                  </div>
-                `
+let shellMounted = false
+let contentArea: HTMLElement | null = null
 
-            return `
+function mountShell(): HTMLElement {
+  if (shellMounted && contentArea) return contentArea
+
+  appRoot.innerHTML = `
+    <div class="app-shell">
+      <nav class="sidebar" aria-label="Attractor navigation">
+        <div class="sidebar-header">
+          <span class="sidebar-title">Strange Attractors</span>
+        </div>
+        <ul class="sidebar-list" role="list">
+          ${attractorCards
+            .map(
+              (card) => `
+            <li>
               <a
-                class="attractor-card"
+                class="sidebar-item${!card.implemented ? ' sidebar-item--disabled' : ''}"
                 href="${ATTRACTOR_ROUTE_PREFIX}${card.id}"
-                aria-label="${card.name}"
                 data-attractor="${card.id}"
+                ${!card.implemented ? 'tabindex="-1" aria-disabled="true"' : ''}
               >
-                ${preview}
-                <span class="card-title">${card.name}</span>
+                <span class="sidebar-dot"></span>
+                <span class="sidebar-item-name">${card.name}</span>
+                ${!card.implemented ? '<span class="sidebar-badge">soon</span>' : ''}
               </a>
-            `
-          })
-          .join('')}
-      </section>
-    </main>
+            </li>
+          `,
+            )
+            .join('')}
+        </ul>
+      </nav>
+      <div class="content-area" id="content-area"></div>
+    </div>
   `
 
-  const previewCanvas = appRoot.querySelector<HTMLCanvasElement>('#lorenz-preview')
+  shellMounted = true
+  contentArea = appRoot.querySelector<HTMLElement>('#content-area')!
+  return contentArea
+}
 
-  if (!previewCanvas) {
-    throw new Error('Lorenz preview canvas failed to initialize.')
-  }
-
-  return mountLorenzScene(previewCanvas, {
-    autoOrbitSpeed: 0.4,
-    dt: 0.005,
-    interactive: false,
-    particleCount: 5000,
-    pointSize: 1.25,
+function updateActiveTab(activeId: string) {
+  const items = appRoot.querySelectorAll<HTMLElement>('.sidebar-item')
+  items.forEach((item) => {
+    item.classList.toggle('sidebar-item--active', item.dataset.attractor === activeId)
   })
 }
 
-function renderUnavailableAttractor(card: AttractorCard): ViewController {
-  appRoot.innerHTML = `
-    <main class="detail-shell">
-      <header class="detail-header">
-        <a class="detail-back" href="#/">Back</a>
-        <div class="detail-copy">
-          <h1>${card.name}</h1>
-          <p>This attractor has not been added yet.</p>
-        </div>
-      </header>
-      <section class="detail-placeholder">
-        <p>${card.name} is still a placeholder in the gallery.</p>
-      </section>
-    </main>
+function renderLorenzContent(container: HTMLElement): ViewController {
+  container.innerHTML = `
+    <canvas
+      id="attractor-canvas"
+      class="content-canvas"
+      aria-label="Lorenz attractor simulation"
+    ></canvas>
   `
-
-  return createNoopController()
-}
-
-function renderLorenzDetail(): ViewController {
-  appRoot.innerHTML = `
-    <main class="detail-shell">
-      <header class="detail-header">
-        <a class="detail-back" href="#/">Back</a>
-        <div class="detail-copy">
-          <h1>Lorenz</h1>
-          <p>Higher-density live simulation.</p>
-        </div>
-      </header>
-      <section class="detail-frame">
-        <canvas
-          id="attractor-detail-canvas"
-          class="detail-canvas"
-          aria-label="Lorenz attractor simulation"
-        ></canvas>
-      </section>
-    </main>
-  `
-
-  const canvas = appRoot.querySelector<HTMLCanvasElement>('#attractor-detail-canvas')
-
-  if (!canvas) {
-    throw new Error('Lorenz detail canvas failed to initialize.')
-  }
-
+  const canvas = container.querySelector<HTMLCanvasElement>('#attractor-canvas')!
   return mountLorenzScene(canvas, {
     autoOrbitSpeed: 0.08,
     dt: 0.005,
@@ -326,41 +232,35 @@ function renderLorenzDetail(): ViewController {
   })
 }
 
-function renderAttractorDetail(id: string): ViewController {
-  const card = attractorCards.find((item) => item.id === id)
-
-  if (!card) {
-    appRoot.innerHTML = `
-      <main class="detail-shell">
-        <header class="detail-header">
-          <a class="detail-back" href="#/">Back</a>
-          <div class="detail-copy">
-            <h1>Not Found</h1>
-            <p>This attractor route does not exist.</p>
-          </div>
-        </header>
-      </main>
-    `
-
-    return createNoopController()
-  }
-
-  if (card.id === 'lorenz') {
-    return renderLorenzDetail()
-  }
-
-  return renderUnavailableAttractor(card)
+function renderPlaceholderContent(container: HTMLElement, card: AttractorCard): ViewController {
+  container.innerHTML = `
+    <div class="content-placeholder">
+      <p>${card.name} hasn't been added yet.</p>
+    </div>
+  `
+  return createNoopController()
 }
 
 let currentView = createNoopController()
 
 function renderRoute() {
+  const container = mountShell()
+
+  const attractorId = getAttractorRoute() ?? 'lorenz'
+  const card = attractorCards.find((c) => c.id === attractorId)
+
+  updateActiveTab(attractorId)
   currentView.destroy()
 
-  const attractorId = getAttractorRoute()
-  currentView = attractorId
-    ? renderAttractorDetail(attractorId)
-    : renderGallery()
+  if (!card) {
+    container.innerHTML = `<div class="content-placeholder"><p>Not found.</p></div>`
+    currentView = createNoopController()
+    return
+  }
+
+  currentView = card.implemented
+    ? renderLorenzContent(container)
+    : renderPlaceholderContent(container, card)
 }
 
 window.addEventListener('hashchange', renderRoute)
