@@ -80,11 +80,6 @@ body,
   background: #141414 !important;
 }
 
-.sidebar-item--disabled {
-  opacity: 0.35;
-  cursor: default;
-  pointer-events: none;
-}
 
 .sidebar-dot {
   width: 5px;
@@ -103,12 +98,122 @@ body,
   flex: 1;
 }
 
-.sidebar-badge {
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
+
+/* ── Info panel ──────────────────────────────────────────── */
+
+.info-panel {
+  width: 260px;
+  flex-shrink: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #080808;
+  border-left: 1px solid #181818;
+  overflow-y: auto;
+}
+
+.info-header {
+  padding: 24px 20px 18px;
+  border-bottom: 1px solid #181818;
+}
+
+.info-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.info-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #374151;
+  margin-bottom: 2px;
 }
+
+.info-eq {
+  color: #d1d5db;
+}
+
+.info-eq .katex {
+  font-size: 0.9rem;
+}
+
+.info-static-value {
+  color: #d1d5db;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+  font-size: 0.75rem;
+}
+
+.info-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.8rem;
+  gap: 8px;
+}
+
+.info-slider-row span:first-child {
+  color: #6b7280;
+}
+
+.info-slider-row span:last-child {
+  color: #d1d5db;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+  font-size: 0.75rem;
+}
+
+.info-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: #1f2937;
+  border-radius: 1px;
+  outline: none;
+  cursor: pointer;
+}
+
+.info-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.info-slider::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: none;
+  border-radius: 50%;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
 
 /* ── Content area ────────────────────────────────────────── */
 

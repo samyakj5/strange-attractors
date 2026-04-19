@@ -21,6 +21,8 @@ export type LorenzSimulation = {
   step: () => void
   getColors: () => Float32Array
   getPositions: () => Float32Array
+  setDt: (dt: number) => void
+  setParticleCount: (count: number) => void
 }
 
 const DEFAULT_PARAMETERS: AttractorParameters = {
@@ -89,18 +91,27 @@ function getNormalizedSpeed(speed: number): number {
   return Math.max(0, Math.min(1, speed / SPEED_COLOR_MAX))
 }
 
-export function createLorenzSimulation(
-  count: number,
-  dt: number,
-): LorenzSimulation {
-  const points: Vec3[] = Array.from({ length: count }, () => ({
-    x: 3 + (Math.random() - 0.5) * 5,
-    y: 3 + (Math.random() - 0.5) * 5,
-    z: Math.random() * 7 + 10,
-  }))
+function makeParticles(count: number): Vec3[] {
+  return Array.from({ length: count }, () => ({
+    // x: 3 + (Math.random() - 0.5) * 5,
+    // y: 3 + (Math.random() - 0.5) * 5,
+    // z: Math.random() * 7 + 10,
 
-  const positions = new Float32Array(count * 3)
-  const colors = new Float32Array(count * 3)
+    x: (Math.random() - 0.5) * 100,
+    y: (Math.random() - 0.5) * 100,
+    z: (Math.random() - 0.5) * 100,
+  }))
+}
+
+export function createLorenzSimulation(
+  initialCount: number,
+  initialDt: number,
+): LorenzSimulation {
+  let count = initialCount
+  let dt = initialDt
+  let points = makeParticles(count)
+  let positions = new Float32Array(count * 3)
+  let colors = new Float32Array(count * 3)
 
   const writeParticle = (index: number, point: Vec3, speed: number) => {
     positions[index * 3] = point.x
@@ -108,9 +119,9 @@ export function createLorenzSimulation(
     positions[index * 3 + 2] = point.z
 
     const t = getNormalizedSpeed(speed)
-    colors[index * 3] = 0.0 + 0.6*t
-    colors[index * 3 + 1] = 0.5 - 0.5*t
-    colors[index * 3 + 2] = 1.0 - 0.5*t
+    colors[index * 3] = 0.0 + 0.6 * t
+    colors[index * 3 + 1] = 0.5 - 0.5 * t
+    colors[index * 3 + 2] = 1.0 - 0.5 * t
   }
 
   for (let i = 0; i < count; i += 1) {
@@ -132,9 +143,49 @@ export function createLorenzSimulation(
     }
   }
 
+  const setDt = (newDt: number) => {
+    dt = newDt
+  }
+
+  const setParticleCount = (newCount: number) => {
+    if (newCount === count) return
+
+    const newPositions = new Float32Array(newCount * 3)
+    const newColors = new Float32Array(newCount * 3)
+
+    if (newCount > count) {
+      // Preserve existing particles, append fresh ones at the end
+      newPositions.set(positions)
+      newColors.set(colors)
+      const added = makeParticles(newCount - count)
+      points = [...points, ...added]
+
+      // Update references before calling writeParticle so it writes into the new arrays
+      positions = newPositions
+      colors = newColors
+
+      for (let i = count; i < newCount; i += 1) {
+        const delta = RK4Delta(lorenz, 0, points[i], dt, DEFAULT_PARAMETERS)
+        writeParticle(i, points[i], getSpeed(delta, dt))
+      }
+    } else {
+      // Preserve the first newCount particles, drop the rest
+      newPositions.set(positions.subarray(0, newCount * 3))
+      newColors.set(colors.subarray(0, newCount * 3))
+      points = points.slice(0, newCount)
+
+      positions = newPositions
+      colors = newColors
+    }
+
+    count = newCount
+  }
+
   return {
     step,
     getColors: () => colors,
     getPositions: () => positions,
+    setDt,
+    setParticleCount,
   }
 }

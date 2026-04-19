@@ -161,8 +161,6 @@ export function createRenderer(
 
     canvas.width = Math.max(1, Math.floor(width * dpr))
     canvas.height = Math.max(1, Math.floor(height * dpr))
-    canvas.style.width = `${width}px`
-    canvas.style.height = `${height}px`
 
     gl.viewport(0, 0, canvas.width, canvas.height)
   }

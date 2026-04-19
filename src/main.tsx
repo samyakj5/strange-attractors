@@ -1,16 +1,27 @@
 import './style.css'
+import 'katex/dist/katex.min.css'
+import katex from 'katex'
 import { createCamera } from './camera.ts'
 import { createLorenzSimulation } from './simulation.ts'
 import { createRenderer } from './webgl.ts'
+
+type AttractorInfo = {
+  equations: string[]
+  parameters: string[]
+  simulation?: { label: string; value: string }[]
+}
 
 type AttractorCard = {
   id: string
   implemented: boolean
   name: string
+  info: AttractorInfo
 }
 
 type ViewController = {
   destroy: () => void
+  setDt?: (dt: number) => void
+  setParticleCount?: (count: number) => void
 }
 
 type LorenzSceneOptions = {
@@ -30,12 +41,37 @@ if (!app) {
 const appRoot: HTMLDivElement = app
 
 const attractorCards: AttractorCard[] = [
-  { id: 'lorenz', implemented: true, name: 'Lorenz' },
-  { id: 'rossler', implemented: false, name: 'Rossler' },
-  { id: 'thomas', implemented: false, name: 'Thomas' },
-  { id: 'aizawa', implemented: false, name: 'Aizawa' },
-  { id: 'dadras', implemented: false, name: 'Dadras' },
-  { id: 'four-wing', implemented: false, name: 'Four-Wing' },
+  {
+    id: 'lorenz',
+    implemented: true,
+    name: 'Lorenz sim',
+    info: {
+      equations: [
+        '\\frac{dx}{dt} = \\sigma(y - x)',
+        '\\frac{dy}{dt} = x(\\rho - z) - y',
+        '\\frac{dz}{dt} = xy - \\beta z',
+      ],
+      parameters: ['\\sigma = 10', '\\rho = 28', '\\beta = 8/3'],
+      simulation: [
+        { label: 'Particles', value: '50,000' },
+        { label: 'Time step', value: '0.005' },
+        { label: 'Integrator', value: 'RK4' },
+      ],
+    },
+  },
+  {
+    id: 'lorenz2',
+    implemented: false,
+    name: 'Lorenz xyz',
+    info: {
+      equations: [
+        '\\frac{dx}{dt} = \\sigma(y - x)',
+        '\\frac{dy}{dt} = x(\\rho - z) - y',
+        '\\frac{dz}{dt} = xy - \\beta z',
+      ],
+      parameters: ['\\sigma = 10', '\\rho = 28', '\\beta = 8/3'],
+    },
+  },
 ]
 
 const ATTRACTOR_ROUTE_PREFIX = '#/attractor/'
@@ -162,11 +198,14 @@ function mountLorenzScene(
 
       renderer.destroy()
     },
+    setDt: (dt) => simulation.setDt(dt),
+    setParticleCount: (count) => simulation.setParticleCount(count),
   }
 }
 
 let shellMounted = false
 let contentArea: HTMLElement | null = null
+let infoPanel: HTMLElement | null = null
 
 function mountShell(): HTMLElement {
   if (shellMounted && contentArea) return contentArea
@@ -183,14 +222,12 @@ function mountShell(): HTMLElement {
               (card) => `
             <li>
               <a
-                class="sidebar-item${!card.implemented ? ' sidebar-item--disabled' : ''}"
+                class="sidebar-item"
                 href="${ATTRACTOR_ROUTE_PREFIX}${card.id}"
                 data-attractor="${card.id}"
-                ${!card.implemented ? 'tabindex="-1" aria-disabled="true"' : ''}
               >
                 <span class="sidebar-dot"></span>
                 <span class="sidebar-item-name">${card.name}</span>
-                ${!card.implemented ? '<span class="sidebar-badge">soon</span>' : ''}
               </a>
             </li>
           `,
@@ -199,11 +236,13 @@ function mountShell(): HTMLElement {
         </ul>
       </nav>
       <div class="content-area" id="content-area"></div>
+      <aside class="info-panel" id="info-panel" aria-label="Attractor info"></aside>
     </div>
   `
 
   shellMounted = true
   contentArea = appRoot.querySelector<HTMLElement>('#content-area')!
+  infoPanel = appRoot.querySelector<HTMLElement>('#info-panel')!
   return contentArea
 }
 
@@ -212,6 +251,109 @@ function updateActiveTab(activeId: string) {
   items.forEach((item) => {
     item.classList.toggle('sidebar-item--active', item.dataset.attractor === activeId)
   })
+}
+
+function updateInfoPanel(card: AttractorCard) {
+  if (!infoPanel) return
+
+  const { info } = card
+
+  const equationsHTML = info.equations
+    .map(
+      (latex) =>
+        `<div class="info-eq">${katex.renderToString(latex, { displayMode: true, throwOnError: false })}</div>`,
+    )
+    .join('')
+
+  const parametersHTML = info.parameters
+    .map(
+      (latex) =>
+        `<div class="info-eq">${katex.renderToString(latex, { displayMode: true, throwOnError: false })}</div>`,
+    )
+    .join('')
+
+  const simulationHTML = info.simulation
+    ? `
+      <div class="info-section">
+        <span class="info-section-label">Simulation</span>
+
+        <div class="info-slider-group">
+          <div class="info-slider-row">
+            <span>Particles</span>
+            <span id="particles-value">50,000</span>
+          </div>
+          <input
+            type="range"
+            class="info-slider"
+            id="particles-slider"
+            min="1000"
+            max="100000"
+            step="1000"
+            value="50000"
+          />
+        </div>
+
+        <div class="info-slider-group">
+          <div class="info-slider-row">
+            <span>Time step</span>
+            <span id="dt-value">0.005</span>
+          </div>
+          <input
+            type="range"
+            class="info-slider"
+            id="dt-slider"
+            min="0.001"
+            max="0.02"
+            step="0.001"
+            value="0.005"
+          />
+        </div>
+
+        <div class="info-slider-row">
+          <span>Integrator</span>
+          <span class="info-static-value">RK4</span>
+        </div>
+      </div>
+    `
+    : ''
+
+  infoPanel.innerHTML = `
+    <div class="info-header">
+      <span class="info-title">${card.name}</span>
+    </div>
+    <div class="info-body">
+      <div class="info-section">
+        <span class="info-section-label">Equations</span>
+        ${equationsHTML}
+      </div>
+
+      <div class="info-section">
+        <span class="info-section-label">Parameters</span>
+        ${parametersHTML}
+      </div>
+
+      ${simulationHTML}
+    </div>
+  `
+
+  if (info.simulation) {
+    const particlesSlider = infoPanel.querySelector<HTMLInputElement>('#particles-slider')!
+    const particlesValue = infoPanel.querySelector<HTMLElement>('#particles-value')!
+    const dtSlider = infoPanel.querySelector<HTMLInputElement>('#dt-slider')!
+    const dtValue = infoPanel.querySelector<HTMLElement>('#dt-value')!
+
+    particlesSlider.addEventListener('input', () => {
+      const count = parseInt(particlesSlider.value)
+      particlesValue.textContent = count.toLocaleString()
+      currentView.setParticleCount?.(count)
+    })
+
+    dtSlider.addEventListener('input', () => {
+      const dt = parseFloat(dtSlider.value)
+      dtValue.textContent = dt.toFixed(3)
+      currentView.setDt?.(dt)
+    })
+  }
 }
 
 function renderLorenzContent(container: HTMLElement): ViewController {
@@ -257,6 +399,8 @@ function renderRoute() {
     currentView = createNoopController()
     return
   }
+
+  updateInfoPanel(card)
 
   currentView = card.implemented
     ? renderLorenzContent(container)
