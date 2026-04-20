@@ -1,10 +1,10 @@
-type Vec3 = {
+export type Vec3 = {
   x: number
   y: number
   z: number
 }
 
-type ODEFunction = (
+export type ODEFunction = (
   t: number,
   point: Vec3,
   parameters: AttractorParameters,
@@ -25,7 +25,7 @@ export type LorenzSimulation = {
   setParticleCount: (count: number) => void
 }
 
-const DEFAULT_PARAMETERS: AttractorParameters = {
+export const DEFAULT_PARAMETERS: AttractorParameters = {
   a: 10,
   b: 28,
   c: 8 / 3,
@@ -34,13 +34,13 @@ const DEFAULT_PARAMETERS: AttractorParameters = {
 
 const SPEED_COLOR_MAX = 175
 
-const lorenz: ODEFunction = (_t = 1, point, parameters) => ({
+export const lorenz: ODEFunction = (_t = 1, point, parameters) => ({
   x: parameters.a * (point.y - point.x),
   y: point.x * (parameters.b - point.z) - point.y,
   z: point.x * point.y - parameters.c * point.z,
 })
 
-function RK4Delta(
+export function RK4Delta(
   f: ODEFunction,
   t: number,
   point: Vec3,

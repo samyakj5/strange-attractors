@@ -4,6 +4,8 @@ import katex from 'katex'
 import { createCamera } from './camera.ts'
 import { createLorenzSimulation } from './simulation.ts'
 import { createRenderer } from './webgl.ts'
+import { createSensitiveDependenceView } from './sensitivedependence.ts'
+import { createHyperchaoticSimulation } from './hyperchaotic.ts'
 
 type AttractorInfo = {
   equations: string[]
@@ -22,6 +24,11 @@ type ViewController = {
   destroy: () => void
   setDt?: (dt: number) => void
   setParticleCount?: (count: number) => void
+  setW?: (w: number) => void
+  pause?: () => void
+  resume?: () => void
+  setWFilter?: (center: number, epsilon: number) => void
+  getWValues?: () => Float32Array
 }
 
 type LorenzSceneOptions = {
@@ -61,7 +68,7 @@ const attractorCards: AttractorCard[] = [
   },
   {
     id: 'lorenz2',
-    implemented: false,
+    implemented: true,
     name: 'Lorenz xyz',
     info: {
       equations: [
@@ -70,6 +77,25 @@ const attractorCards: AttractorCard[] = [
         '\\frac{dz}{dt} = xy - \\beta z',
       ],
       parameters: ['\\sigma = 10', '\\rho = 28', '\\beta = 8/3'],
+    },
+  },
+  {
+    id: '4d',
+    implemented: true,
+    name: 'Hyperchaotic Attractor',
+    info: {
+      equations: [
+        '\\frac{dx}{dt} = ax - yz + w',
+        '\\frac{dy}{dt} = xz - by',
+        '\\frac{dz}{dt} = xy - cz + xw',
+        '\\frac{dw}{dt} = -y',
+      ],
+      parameters: ['a = 8', 'b = 40', 'c = 14.9'],
+      simulation: [
+        { label: 'Particles', value: '50,000' },
+        { label: 'Time step', value: '0.005' },
+        { label: 'Integrator', value: 'RK4' },
+      ],
     },
   },
 ]
@@ -163,15 +189,19 @@ function mountLorenzScene(
     canvas.addEventListener('wheel', handleWheel, { passive: false })
   }
 
+  let paused = false
+
   const renderFrame = () => {
     if (destroyed) return
 
-    simulation.step()
-    renderer.setPositions(simulation.getPositions())
-    renderer.setColors(simulation.getColors())
+    if (!paused) {
+      simulation.step()
+      renderer.setPositions(simulation.getPositions())
+      renderer.setColors(simulation.getColors())
 
-    if (!isDragging && options.autoOrbitSpeed) {
-      camera.orbit(options.autoOrbitSpeed, 0)
+      if (!isDragging && options.autoOrbitSpeed) {
+        camera.orbit(options.autoOrbitSpeed, 0)
+      }
     }
 
     const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1)
@@ -200,6 +230,75 @@ function mountLorenzScene(
     },
     setDt: (dt) => simulation.setDt(dt),
     setParticleCount: (count) => simulation.setParticleCount(count),
+    pause: () => { paused = true },
+    resume: () => { paused = false },
+  }
+}
+
+type HyperchaoticSceneController = ViewController & {
+  pause: () => void
+  resume: () => void
+  setWFilter: (center: number, epsilon: number) => void
+  getWValues: () => Float32Array
+}
+
+function mountHyperchaoticScene(canvas: HTMLCanvasElement): HyperchaoticSceneController {
+  const renderer = createRenderer(canvas, { clearColor: [0, 0, 0, 0], pointSize: 1.5 })
+  const camera = createCamera({ x: 0, y: 0, z: 0 })
+  const simulation = createHyperchaoticSimulation(50000, 0.005, 0)
+
+  renderer.setPositions(simulation.getPositions())
+  renderer.setColors(simulation.getColors())
+
+  let animationFrameId = 0
+  let destroyed = false
+  let paused = false
+  let isDragging = false
+  let lastX = 0
+  let lastY = 0
+
+  const resize = () => {
+    const { height, width } = canvas.getBoundingClientRect()
+    renderer.resize(width, height)
+  }
+  resize()
+  const resizeObserver = new ResizeObserver(resize)
+  resizeObserver.observe(canvas)
+
+  canvas.addEventListener('pointerdown', (e) => { isDragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId) })
+  canvas.addEventListener('pointermove', (e) => { if (!isDragging) return; camera.orbit(e.clientX - lastX, e.clientY - lastY); lastX = e.clientX; lastY = e.clientY })
+  canvas.addEventListener('pointerup', (e) => { isDragging = false; canvas.releasePointerCapture(e.pointerId) })
+  canvas.addEventListener('pointercancel', (e) => { isDragging = false; canvas.releasePointerCapture(e.pointerId) })
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); camera.zoom(e.deltaY) }, { passive: false })
+
+  const renderFrame = () => {
+    if (destroyed) return
+    if (!paused) {
+      simulation.step()
+      renderer.setPositions(simulation.getPositions())
+      if (!isDragging) camera.orbit(0.08, 0)
+    }
+    renderer.setColors(simulation.getColors())
+    const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1)
+    renderer.render(camera.getMatrix(aspect || 1))
+    animationFrameId = requestAnimationFrame(renderFrame)
+  }
+  renderFrame()
+
+  return {
+    destroy: () => {
+      destroyed = true
+      cancelAnimationFrame(animationFrameId)
+      resizeObserver.disconnect()
+      renderer.destroy()
+    },
+    setDt: (dt) => simulation.setDt(dt),
+    setParticleCount: (count) => simulation.setParticleCount(count),
+    setW: (w) => simulation.setInitialW(w),
+    pause: () => { paused = true },
+    resume: () => { paused = false; simulation.clearWFilter() },
+    setWFilter: (center, epsilon) => simulation.setWFilter(center, epsilon),
+    getWValues: () => simulation.getWValues(),
   }
 }
 
@@ -272,6 +371,12 @@ function updateInfoPanel(card: AttractorCard) {
     )
     .join('')
 
+  const is4d = card.id === '4d'
+  const defaultParticles = 50000
+  const defaultDt = 0.005
+  const maxParticles = 100000
+  const maxDt = 0.02
+
   const simulationHTML = info.simulation
     ? `
       <div class="info-section">
@@ -280,32 +385,32 @@ function updateInfoPanel(card: AttractorCard) {
         <div class="info-slider-group">
           <div class="info-slider-row">
             <span>Particles</span>
-            <span id="particles-value">50,000</span>
+            <span id="particles-value">${defaultParticles.toLocaleString()}</span>
           </div>
           <input
             type="range"
             class="info-slider"
             id="particles-slider"
             min="1000"
-            max="100000"
+            max="${maxParticles}"
             step="1000"
-            value="50000"
+            value="${defaultParticles}"
           />
         </div>
 
         <div class="info-slider-group">
           <div class="info-slider-row">
             <span>Time step</span>
-            <span id="dt-value">0.005</span>
+            <span id="dt-value">${defaultDt.toFixed(3)}</span>
           </div>
           <input
             type="range"
             class="info-slider"
             id="dt-slider"
             min="0.001"
-            max="0.02"
+            max="${maxDt}"
             step="0.001"
-            value="0.005"
+            value="${defaultDt}"
           />
         </div>
 
@@ -313,6 +418,20 @@ function updateInfoPanel(card: AttractorCard) {
           <span>Integrator</span>
           <span class="info-static-value">RK4</span>
         </div>
+
+        <button class="info-pause-btn" id="hc-pause">Pause</button>
+
+        ${is4d ? `
+        <div id="hc-slice-group" style="display:none">
+          <div class="info-slider-group">
+            <div class="info-slider-row">
+              <span>w slice</span>
+              <span id="hc-w-val">0.00</span>
+            </div>
+            <input type="range" class="info-slider" id="hc-w-slider" />
+          </div>
+        </div>
+        ` : ''}
       </div>
     `
     : ''
@@ -353,6 +472,54 @@ function updateInfoPanel(card: AttractorCard) {
       dtValue.textContent = dt.toFixed(3)
       currentView.setDt?.(dt)
     })
+
+    const pauseBtn = infoPanel.querySelector<HTMLButtonElement>('#hc-pause')!
+    const sliceGroup = is4d ? infoPanel.querySelector<HTMLElement>('#hc-slice-group') : null
+    const wSliceSlider = is4d ? infoPanel.querySelector<HTMLInputElement>('#hc-w-slider') : null
+    const wValLabel = is4d ? infoPanel.querySelector<HTMLElement>('#hc-w-val') : null
+
+    const getWRange = () => {
+      const wVals = currentView.getWValues?.()
+      if (!wVals) return { wMin: -15, wMax: 15, epsilon: 1.5 }
+      let wMin = Infinity, wMax = -Infinity
+      for (let i = 0; i < wVals.length; i++) {
+        if (wVals[i] < wMin) wMin = wVals[i]
+        if (wVals[i] > wMax) wMax = wVals[i]
+      }
+      return { wMin, wMax, epsilon: (wMax - wMin) * 0.05 }
+    }
+
+    pauseBtn.addEventListener('click', () => {
+      const nowPausing = pauseBtn.textContent === 'Pause'
+      if (nowPausing) {
+        currentView.pause?.()
+        pauseBtn.textContent = 'Resume'
+        if (sliceGroup && wSliceSlider && wValLabel) {
+          const { wMin, wMax, epsilon } = getWRange()
+          const wCenter = (wMin + wMax) / 2
+          wSliceSlider.min = wMin.toFixed(2)
+          wSliceSlider.max = wMax.toFixed(2)
+          wSliceSlider.step = ((wMax - wMin) / 300).toFixed(3)
+          wSliceSlider.value = wCenter.toFixed(2)
+          wValLabel.textContent = wCenter.toFixed(2)
+          currentView.setWFilter?.(wCenter, epsilon)
+          sliceGroup.style.display = ''
+        }
+      } else {
+        currentView.resume?.()
+        pauseBtn.textContent = 'Pause'
+        if (sliceGroup) sliceGroup.style.display = 'none'
+      }
+    })
+
+    if (wSliceSlider && wValLabel) {
+      wSliceSlider.addEventListener('input', () => {
+        const center = parseFloat(wSliceSlider.value)
+        const { epsilon } = getWRange()
+        wValLabel.textContent = center.toFixed(2)
+        currentView.setWFilter?.(center, epsilon)
+      })
+    }
   }
 }
 
@@ -372,6 +539,14 @@ function renderLorenzContent(container: HTMLElement): ViewController {
     particleCount: 50000,
     pointSize: 1.35,
   })
+}
+
+function renderHyperchaoticContent(container: HTMLElement): ViewController {
+  container.innerHTML = `
+    <canvas class="content-canvas" id="attractor-canvas" aria-label="Hyperchaotic attractor simulation"></canvas>
+  `
+  const canvas = container.querySelector<HTMLCanvasElement>('#attractor-canvas')!
+  return mountHyperchaoticScene(canvas)
 }
 
 function renderPlaceholderContent(container: HTMLElement, card: AttractorCard): ViewController {
@@ -402,9 +577,15 @@ function renderRoute() {
 
   updateInfoPanel(card)
 
-  currentView = card.implemented
-    ? renderLorenzContent(container)
-    : renderPlaceholderContent(container, card)
+  if (card.id === 'lorenz') {
+    currentView = renderLorenzContent(container)
+  } else if (card.id === 'lorenz2') {
+    currentView = createSensitiveDependenceView(container)
+  } else if (card.id === '4d') {
+    currentView = renderHyperchaoticContent(container)
+  } else {
+    currentView = renderPlaceholderContent(container, card)
+  }
 }
 
 window.addEventListener('hashchange', renderRoute)

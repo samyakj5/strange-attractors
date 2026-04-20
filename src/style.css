@@ -242,3 +242,47 @@ body,
 .content-placeholder p {
   margin: 0;
 }
+
+/* ── Hyperchaotic panel controls ─────────────────────────── */
+
+.info-pause-btn {
+  width: 100%;
+  padding: 10px;
+  background: #0d0d0d;
+  border: 1px solid #1f2937;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-family: inherit;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.info-pause-btn:hover {
+  background: #141414;
+  color: #e2e8f0;
+  border-color: #374151;
+}
+
+#hc-slice-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chaos-plots {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  gap: 8px;
+}
+
+.chaos-canvas {
+  flex: 1;
+  width: 100%;
+  display: block;
+}
