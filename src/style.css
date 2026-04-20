@@ -243,6 +243,33 @@ body,
   margin: 0;
 }
 
+/* ── Citation ────────────────────────────────────────────── */
+
+.info-citation {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+  border-top: 1px solid #181818;
+}
+
+.info-citation a {
+  font-size: 0.7rem;
+  color: #4b5563;
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.info-citation a:hover {
+  color: #9ca3af;
+}
+
+.info-citation span {
+  font-size: 0.68rem;
+  color: #374151;
+  font-style: italic;
+}
+
 /* ── Hyperchaotic panel controls ─────────────────────────── */
 
 .info-pause-btn {

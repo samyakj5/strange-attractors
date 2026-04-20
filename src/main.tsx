@@ -11,6 +11,7 @@ type AttractorInfo = {
   equations: string[]
   parameters: string[]
   simulation?: { label: string; value: string }[]
+  citation?: { authors: string; journal: string; url: string }
 }
 
 type AttractorCard = {
@@ -91,6 +92,11 @@ const attractorCards: AttractorCard[] = [
         '\\frac{dw}{dt} = -y',
       ],
       parameters: ['a = 8', 'b = 40', 'c = 14.9'],
+      citation: {
+        authors: 'Dadras, Momeni, Qi et al.',
+        journal: 'Nonlinear Dynamics 67, 1161–1173 (2012)',
+        url: 'https://doi.org/10.1007/s11071-011-0060-0',
+      },
       simulation: [
         { label: 'Particles', value: '50,000' },
         { label: 'Time step', value: '0.005' },
@@ -452,6 +458,13 @@ function updateInfoPanel(card: AttractorCard) {
       </div>
 
       ${simulationHTML}
+
+      ${info.citation ? `
+      <div class="info-citation">
+        <a href="${info.citation.url}" target="_blank" rel="noopener">${info.citation.authors}</a>
+        <span>${info.citation.journal}</span>
+      </div>
+      ` : ''}
     </div>
   `
 
